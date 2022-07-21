@@ -31,7 +31,7 @@ class UserController extends AbstractController
             return $this->json(['message' => 'No user found'], 404);
         }
 
-        $balance = $this->userService->calculateCurrentBalance($user['id'], $request->get('from'), $request->get('to'));
+        $balance = $this->userService->calculateCurrentBalance($user->getId(), $request->get('from'), $request->get('to'));
 
         return $this->json(['balance' => $balance]);
     }

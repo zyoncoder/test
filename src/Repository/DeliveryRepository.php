@@ -41,11 +41,12 @@ class DeliveryRepository extends ServiceEntityRepository
 
     public function findUserDeliveriesBetweenDatesForWhichPointsWereNotWithdrawn($userId, $fromDate, $toDate): array
     {
+
         return $this->createQueryBuilder('d')
-            ->where('d.user_id = :user_id')
+            ->where('d.user = :user_id')
             ->andWhere('d.created_at BETWEEN :from_date AND :to_date')
-            ->andWhere('d.action_points_withdrew = 0')
-            ->andWhere('d.booster_points_withdrew = 0')
+            ->andWhere('d.action_point_withdrew = 0')
+            ->andWhere('d.booster_point_withdrew = 0')
             ->setParameter('user_id', $userId)
             ->setParameter('from_date', $fromDate)
             ->setParameter('to_date', $toDate)

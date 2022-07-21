@@ -18,10 +18,10 @@ class Delivery
     private ?User $user = null;
 
     #[ORM\Column(length: 1)]
-    private ?int $actionPointWithdrew = null;
+    private ?int $action_point_withdrew = null;
 
     #[ORM\Column(length: 1)]
-    private ?int $boosterPointWithdrew = null;
+    private ?int $booster_point_withdrew = null;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $created_at = null;
@@ -42,6 +42,7 @@ class Delivery
 
         return $this;
     }
+
 
     public function getCreatedAt(): ?\DateTimeImmutable
     {

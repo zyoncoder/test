@@ -42,10 +42,10 @@ class RideshareRepository extends ServiceEntityRepository
     public function findUserRidesharesBetweenDatesForWhichPointsWereNotWidthdrawn($userId, $fromDate, $toDate): array
     {
         return $this->createQueryBuilder('r')
-            ->where('r.user_id = :user_id')
+            ->where('r.user  = :user_id')
             ->andWhere('r.created_at BETWEEN :from_date AND :to_date')
-            ->andWhere('r.action_points_withdrew = 0')
-            ->andWhere('r.booster_points_withdrew = 0')
+            ->andWhere('r.action_point_withdrew = 0')
+            ->andWhere('r.booster_point_withdrew = 0')
             ->setParameter('user_id', $userId)
             ->setParameter('from_date', $fromDate)
             ->setParameter('to_date', $toDate)

@@ -71,6 +71,8 @@ class UserService
         $deliveryAction = Action::DELIVERY;
         $fiveDeliveriesIn2HoursBooster = DeliveryBooster::FIVE_DELIVERIES_IN_2_HOURS;
 
+        $now = new DateTime();
+        $deliveriesUsedInBooster = [];
 
         $total = 0;
         foreach($deliveries as $delivery) {
@@ -78,58 +80,69 @@ class UserService
 
             $deliveryDate = DateTime::createFromImmutable($delivery->getCreatedAt());
 
-            $lastMonth = (clone $deliveryDate)->sub(new DateInterval('PT1M'));
-
-
-            // get the day of week
+            // get the delivery day of week
             $dayOfWeekDelivery = strtoupper($deliveryDate->format('l'));
+            
             // build the constant name for booster interval, eg MONDAY_START, MONDAY_END
             $boosterDayStart = $dayOfWeekDelivery . '_START';
             $boosterDayEnd = $dayOfWeekDelivery . '_END';
 
-            // get date 2h before delivery
-            $deliveryFromDate = (clone $deliveryDate)->sub(new DateInterval("PT2H"));
+            $boosterDayStartTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayStart);
+            $booterDayEndTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayEnd);
 
+            // if it qualifies for booster
+            if($deliveryDate > new DateTime($deliveryDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value)
+            && $deliveryDate < new DateTime($deliveryDate->format('Y-m-d') . ' ' . $booterDayEndTime->value)) {
 
-            $deliveryFromDateFormatted = $deliveryFromDate->format('Y-m-d');
+                // get date 2h before delivery
+                $deliveryFromDate = (clone $deliveryDate)->sub(new DateInterval("PT2H"));
 
-            // if it's in within 1 month
-            if($lastMonth < $deliveryFromDate) {
+                $deliveryFromDateFormatted = $deliveryFromDate->format('Y-m-d H:i:s');
 
-                $boosterDayStartTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayStart);
+                $timeIntervalBetweenDeliveryDateMinus2HAndToday = $now->diff($deliveryFromDate);
 
-                // if the delivery time is before the booster start
-                if ($deliveryFromDate < new DateTime($deliveryFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value)) {
-                    // use the booster start time instead
-                    $deliveryFromDateFormatted = $deliveryFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value;
+                // if delivery date is in the last month
+                if ($timeIntervalBetweenDeliveryDateMinus2HAndToday->y === 0 && $timeIntervalBetweenDeliveryDateMinus2HAndToday->m === 0) {
+
+                    // if the delivery time is before the booster start
+                    if ($deliveryFromDate < new DateTime($deliveryFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value)) {
+                        // use the booster start time instead
+                        $deliveryFromDateFormatted = $deliveryFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value;
+                    }
                 }
-            }
 
-            // get date 2h after delivery
-            $deliveryToDate = (clone $deliveryDate)->add(new DateInterval("PT2H"));
+                // get date 2h after delivery
+                $deliveryToDate = (clone $deliveryDate)->add(new DateInterval("PT2H"));
 
-            $deliveryToDateFormatted = $deliveryToDate->format('Y-m-d');
+                $deliveryToDateFormatted = $deliveryToDate->format('Y-m-d H:i:s');
 
-            // if it's in within 1 month
-            if($lastMonth < $deliveryToDate) {
+                $timeIntervalBetweenDeliveryDatePlus2HoursAndToday = $now->diff($deliveryFromDate);
 
-                $booterDayEndTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayEnd);
+                // if it's in within 1 month
+                if ($timeIntervalBetweenDeliveryDatePlus2HoursAndToday->y === 0 && $timeIntervalBetweenDeliveryDatePlus2HoursAndToday->m === 0) {
 
-                // if the delivery time is after the booster start
-                if ($deliveryToDate > new DateTime($deliveryToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value)) {
-                    // use the booster end time instead
-                    $deliveryToDateFormatted = $deliveryToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value;
+                    // if the delivery time is after the booster end
+                    if ($deliveryToDate > new DateTime($deliveryToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value)) {
+                        // use the booster end time instead
+                        $deliveryToDateFormatted = $deliveryToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value;
+                    }
                 }
-            }
 
-            // find all deliveries within 2h interval
-            if($this->deliveryRepository->findUserDeliveriesBetweenDatesForWhichPointsWereNotWithdrawn($userId, $deliveryFromDateFormatted, $deliveryToDateFormatted) >= 5) {
-                $total += $fiveDeliveriesIn2HoursBooster->points();
 
+                $deliveriesIn2hInterval = $this->deliveryRepository->findUserDeliveriesBetweenDatesForWhichPointsWereNotWithdrawnAndBoosterWasNotUsed($userId, $deliveryFromDateFormatted, $deliveryToDateFormatted, $deliveriesUsedInBooster);
+
+                // find all deliveries within 2h interval
+                if (count($deliveriesIn2hInterval) >= 5) {
+                    $total += $fiveDeliveriesIn2HoursBooster->points();
+
+                    $deliveriesUsedInBooster[] = $delivery->getId();
+
+                    $deliveriesUsedInBooster = array_merge($deliveriesUsedInBooster, array_column($deliveriesIn2hInterval, 'id'));
+                }
             }
                 $total += $deliveryAction->points();
 
-            }
+        }
 
         return $total;
     }
@@ -154,12 +167,13 @@ class UserService
         $rideshareAction = Action::RIDESHARE;
         $fiveRidesharesIn8HoursBooster = RideshareBooster::FIVE_RIDESHARES_IN_8_HOURS;
 
+        $now = new DateTime();
+        $rideSharesUsedInBooster = [];
+
         $total = 0;
         foreach($rideSharings as $rideSharing) {
 
             $rideShareDate = DateTime::createFromImmutable($rideSharing->getCreatedAt());
-
-            $lastMonth = (clone $rideShareDate)->sub(new DateInterval('PT1M'));
 
             // get the day of week
             $dayOfWeekDelivery = strtoupper($rideShareDate->format('l'));
@@ -168,47 +182,62 @@ class UserService
             $boosterDayStart = $dayOfWeekDelivery . '_START';
             $boosterDayEnd = $dayOfWeekDelivery . '_END';
 
-            // get date 8h before delivery
-            $rideShareFromDate = (clone $rideShareDate)->sub(new DateInterval("PT8H"));
+            $boosterDayStartTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayStart);
+            $booterDayEndTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayEnd);
 
-            $rideShareFromDateFormatted = $rideShareFromDate->format('Y-m-d H:i:s');
 
-            // if it's in within 1 month
-            if($lastMonth < $rideShareFromDate) {
+            // if it qualifies for booster
+            if($rideShareDate > new DateTime($rideShareDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value)
+                &&  $rideShareDate < new DateTime($rideShareDate->format('Y-m-d') . ' ' . $booterDayEndTime->value)) {
 
-                $boosterDayStartTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayStart);
 
-                // if the rideshare time is after the booster start
-                if ($rideShareFromDate < new DateTime($rideShareFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value)) {
-                    // use the booster end time instead
-                    $rideShareFromDateFormatted = $rideShareFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value;
+                // get date 8h before delivery
+                $rideShareFromDate = (clone $rideShareDate)->sub(new DateInterval("PT8H"));
+
+                $rideShareFromDateFormatted = $rideShareFromDate->format('Y-m-d H:i:s');
+
+                $timeIntervalBetweenRideShareDateMinus8HAndToday = $now->diff($rideShareFromDate);
+
+                // if it's in within 1 month
+                if ($timeIntervalBetweenRideShareDateMinus8HAndToday->y === 0 && $timeIntervalBetweenRideShareDateMinus8HAndToday->m === 0) {
+
+                    // if the rideshare time is after the booster start
+                    if ($rideShareFromDate < new DateTime($rideShareFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value)) {
+                        // use the booster end time instead
+                        $rideShareFromDateFormatted = $rideShareFromDate->format('Y-m-d') . ' ' . $boosterDayStartTime->value;
+                    }
                 }
-            }
 
-            // get date 8h after delivery
-            $rideShareToDate = (clone $rideShareDate)->add(new DateInterval("PT8H"));
+                // get date 8h after delivery
+                $rideShareToDate = (clone $rideShareDate)->add(new DateInterval("PT8H"));
 
-            $rideShareToDateFormatted = $rideShareDate->format('Y-m-d');
+                $rideShareToDateFormatted = $rideShareDate->format('Y-m-d H:i:s');
 
-            // if it's in within 1 month
-            if($lastMonth < $rideShareToDate) {
+                $timeIntervalBetweenDeliveryDatePlus8HoursAndToday = $now->diff($rideShareToDate);
 
-                $booterDayEndTime = constant('App\Enum\Booster\BoosterActiveInterval::' . $boosterDayEnd);
+                // if it's in within 1 month
+                if ($timeIntervalBetweenDeliveryDatePlus8HoursAndToday->y === 0 && $timeIntervalBetweenDeliveryDatePlus8HoursAndToday->m === 0) {
 
-                // if the delivery time is after the booster start
-                if ($rideShareToDate > new DateTime($rideShareToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value)) {
-                    // use the booster end time instead
-                    $rideShareToDateFormatted = $rideShareToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value;
+                    // if the delivery time is after the booster start
+                    if ($rideShareToDate > new DateTime($rideShareToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value)) {
+                        // use the booster end time instead
+                        $rideShareToDateFormatted = $rideShareToDate->format('Y-m-d') . ' ' . $booterDayEndTime->value;
+                    }
                 }
-            }
+                
+                $rideSharesIn8hInterval = $this->rideshareRepository->findUserRidesharesInTimeIntervalForWhichPointsWereNotWidthdrawnAndBoosterWasNotUsed($userId, $rideShareFromDateFormatted, $rideShareToDateFormatted, $rideSharesUsedInBooster);
 
-            // find all deliveries within 8h interval
-            if($this->rideshareRepository->findUserRidesharesBetweenDatesForWhichPointsWereNotWidthdrawn($userId, $rideShareFromDateFormatted, $rideShareToDateFormatted) >= 5) {
-                $total += $fiveRidesharesIn8HoursBooster->points();
+                // find all ride shares within 8h interval
+                if (count($rideSharesIn8hInterval) >= 5) {
+                    $total += $fiveRidesharesIn8HoursBooster->points();
+
+                    $rideSharesUsedInBooster[] = $rideSharing->getId();
+
+                    $rideSharesUsedInBooster = array_merge($rideSharesUsedInBooster, array_column($rideSharesIn8hInterval, 'id'));
+                }
             }
 
             $total += $rideshareAction->points();
-
         }
 
         return $total;
@@ -227,17 +256,11 @@ class UserService
     */
     public function calculateCurrentBalanceFromRentals(int $userId, string $fromDate, string $toDate): int {
 
-        $rentalsNumber = $this->rentRepository->findBetweenDates($userId, $fromDate, $toDate);
+        $rentalsNumber = $this->rentRepository->findUserRentalsInATimeIntervalForWhichPointsWereNotWidthdraw($userId, $fromDate, $toDate);
 
         $rentAction = Action::RIDESHARE;
 
-        $total = 0;
-        for($i = 0; $i <= $rentalsNumber; $i++) {
-
-            $total += $rentAction->points();
-        }
-
-        return $total;
+        return $rentalsNumber * $rentAction->points();
     }
 }
 

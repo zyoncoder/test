@@ -39,7 +39,7 @@ class RentRepository extends ServiceEntityRepository
         }
     }
 
-    public function findBetweenDates($userId, $fromDate, $toDate): int
+    public function findUserRentalsInATimeIntervalForWhichPointsWereNotWidthdraw($userId, $fromDate, $toDate): int
     {
         return $this->createQueryBuilder('r')
             ->select('count(1)')

@@ -39,6 +39,7 @@ class DeliveryRepository extends ServiceEntityRepository
         }
     }
 
+
     public function findUserDeliveriesBetweenDatesForWhichPointsWereNotWithdrawn($userId, $fromDate, $toDate): array
     {
 
@@ -52,8 +53,32 @@ class DeliveryRepository extends ServiceEntityRepository
             ->setParameter('to_date', $toDate)
             ->orderBy('d.id', 'ASC')
             ->getQuery()
-            ->getResult()
-            ;
+            ->getResult();
+    }
+
+    public function findUserDeliveriesBetweenDatesForWhichPointsWereNotWithdrawnAndBoosterWasNotUsed($userId, $fromDate, $toDate, $excludeIds): array
+    {
+
+        $queryBuilder = $this->createQueryBuilder('d');
+
+        $queryBuilder
+            ->select('d.id')
+            ->where('d.user = :user_id')
+            ->andWhere('d.created_at BETWEEN :from_date AND :to_date')
+            ->andWhere('d.action_point_withdrew = 0')
+            ->andWhere('d.booster_point_withdrew = 0');
+
+        if (count($excludeIds) > 0) {
+
+            $queryBuilder->andWhere($queryBuilder->expr()->notIn('d.id', $excludeIds));
+        }
+
+        return $queryBuilder->setParameter('user_id', $userId)
+            ->setParameter('from_date', $fromDate)
+            ->setParameter('to_date', $toDate)
+            ->orderBy('d.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }
 

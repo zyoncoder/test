@@ -53,4 +53,30 @@ class RideshareRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function findUserRidesharesInTimeIntervalForWhichPointsWereNotWidthdrawnAndBoosterWasNotUsed($userId, $fromDate, $toDate, $excludeIds): array
+    {
+
+        $queryBuilder = $this->createQueryBuilder('r');
+
+        $queryBuilder
+            ->select('r.id')
+            ->where('r.user = :user_id')
+            ->andWhere('r.created_at BETWEEN :from_date AND :to_date')
+            ->andWhere('r.action_point_withdrew = 0')
+            ->andWhere('r.booster_point_withdrew = 0');
+
+        if (count($excludeIds) > 0) {
+
+            $queryBuilder->andWhere($queryBuilder->expr()->notIn('r.id', $excludeIds));
+        }
+
+        return $queryBuilder->setParameter('user_id', $userId)
+            ->setParameter('from_date', $fromDate)
+            ->setParameter('to_date', $toDate)
+            ->orderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }
+

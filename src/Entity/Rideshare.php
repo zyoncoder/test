@@ -43,6 +43,21 @@ class Rideshare
         return $this;
     }
 
+    public function setActionPointWithdrew(int $actionPointWithdrew): self
+    {
+        $this->action_point_withdrew = $actionPointWithdrew;
+
+        return $this;
+    }
+
+
+    public function setBoosterPointWithdrew(int $boosterPointWithdrew): self
+    {
+        $this->booster_point_withdrew = $boosterPointWithdrew;
+
+        return $this;
+    }
+
     public function getCreatedAt(): ?\DateTimeImmutable
     {
         return $this->created_at;

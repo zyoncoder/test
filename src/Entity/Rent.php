@@ -40,6 +40,14 @@ class Rent
         return $this;
     }
 
+    public function setActionPointWithdrew(int $actionPointWithdrew): self
+    {
+        $this->action_point_withdrew = $actionPointWithdrew;
+
+        return $this;
+    }
+
+    
     public function getCreatedAt(): ?\DateTimeImmutable
     {
         return $this->created_at;

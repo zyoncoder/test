@@ -44,6 +44,7 @@ class UserService
     */
     public function calculateCurrentBalance(int $userId, string $fromDate, string $toDate): int {
 
+        //return $this->calculateCurrentBalanceFromDeliveries($userId, $fromDate, $toDate);
         return $this->calculateCurrentBalanceFromDeliveries($userId, $fromDate, $toDate)
             +
             $this->calculateCurrentBalanceFromRideSharing($userId, $fromDate,$toDate)
@@ -73,11 +74,8 @@ class UserService
 
         $now = new DateTime();
         $deliveriesUsedInBooster = [];
-
         $total = 0;
         foreach($deliveries as $delivery) {
-
-
             $deliveryDate = DateTime::createFromImmutable($delivery->getCreatedAt());
 
             // get the delivery day of week

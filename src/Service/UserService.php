@@ -44,7 +44,6 @@ class UserService
     */
     public function calculateCurrentBalance(int $userId, string $fromDate, string $toDate): int {
 
-        //return $this->calculateCurrentBalanceFromDeliveries($userId, $fromDate, $toDate);
         return $this->calculateCurrentBalanceFromDeliveries($userId, $fromDate, $toDate)
             +
             $this->calculateCurrentBalanceFromRideSharing($userId, $fromDate,$toDate)
